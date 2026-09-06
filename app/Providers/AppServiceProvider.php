@@ -40,16 +40,12 @@ class AppServiceProvider extends ServiceProvider
 
         \Illuminate\Support\Facades\View::composer('*', function ($view) {
             try {
-                $license = \App\Models\AppLicense::latest()->first();
-                $appName = ($license && !empty($license->custom_app_name))
-                    ? $license->custom_app_name
-                    : config('app.name', 'Vendora Shopee Management');
-                $warehouseName = ($license && !empty($license->custom_warehouse_name))
-                    ? $license->custom_warehouse_name
-                    : 'Gudang Utama';
-                $appLogo = ($license && !empty($license->custom_logo_url))
-                    ? $license->custom_logo_url
-                    : null;
+                $license = \App\Models\AppLicense::where('status', 'active')->latest()->first()
+                    ?: \App\Models\AppLicense::latest()->first();
+
+                $appName = $license?->effective_app_name ?: config('app.name', 'Vendora Shopee Management');
+                $warehouseName = $license?->effective_warehouse_name ?: 'Gudang Utama';
+                $appLogo = $license?->effective_logo_url;
                 $appLicense = $license;
             } catch (\Throwable $e) {
                 $appName = config('app.name', 'Vendora Shopee Management');

@@ -181,22 +181,26 @@
             <div class="card-body text-center py-4">
                 <div class="mb-3 mx-auto shadow-sm rounded-circle d-flex align-items-center justify-content-center overflow-hidden border bg-white"
                      style="width: 80px; height: 80px;">
-                    @if(!empty($license?->custom_logo_url))
-                        <img src="{{ $license?->custom_logo_url }}" alt="Logo Toko" style="width: 100%; height: 100%; object-fit: cover;">
+                    @if(!empty($license?->effective_logo_url))
+                        <img src="{{ $license?->effective_logo_url }}" alt="Logo Toko" style="width: 100%; height: 100%; object-fit: cover;">
+                    @elseif(!empty($currentAppName) && $currentAppName !== 'Vendora Shopee Management')
+                        <img src="https://ui-avatars.com/api/?name={{ urlencode($currentAppName) }}&background=0D9488&color=fff&bold=true&rounded=true" alt="Logo Toko" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='{{ asset('images/logo.png') }}'">
                     @else
-                        <img src="{{ asset('images/logo.png') }}" alt="Default Logo" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($license?->custom_app_name ?? 'Vendora') }}&background=0D9488&color=fff'">
+                        <img src="{{ asset('images/logo.png') }}" alt="Default Logo" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name=Vendora&background=0D9488&color=fff'">
                     @endif
                 </div>
 
                 <h5 class="font-weight-bold text-dark mb-1">
-                    {{ $license?->custom_app_name ?: ($currentAppName ?? 'Vendora Shopee Management') }}
+                    {{ $license?->effective_app_name ?? ($currentAppName ?? 'Vendora Shopee Management') }}
                 </h5>
                 <p class="text-primary font-weight-bold mb-1" style="font-size: 13px;">
-                    <i class="fas fa-warehouse mr-1 text-info"></i> {{ $license?->custom_warehouse_name ?: ($currentWarehouseName ?? 'Gudang Utama') }}
+                    <i class="fas fa-warehouse mr-1 text-info"></i> {{ $license?->effective_warehouse_name ?? ($currentWarehouseName ?? 'Gudang Utama') }}
                 </p>
                 <p class="text-muted mb-3" style="font-size: 12px;">
                     @if(!empty($license?->custom_app_name) || !empty($license?->custom_warehouse_name))
                         <span class="badge badge-success px-2 py-0.5">White-label Custom</span>
+                    @elseif(!empty($license?->client_name))
+                        <span class="badge badge-info px-2 py-0.5">Nama Toko Klien (Lisensi)</span>
                     @else
                         <span class="badge badge-secondary px-2 py-0.5">Default App Name</span>
                     @endif

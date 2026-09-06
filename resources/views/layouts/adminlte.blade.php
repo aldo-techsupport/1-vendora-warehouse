@@ -434,8 +434,10 @@
         <a href="{{ route('dashboard') }}" class="brand-link d-flex align-items-center" style="gap: 10px; padding: 10px 14px;">
             @if(!empty($currentAppLogo))
                 <img src="{{ $currentAppLogo }}" alt="Logo" class="brand-image img-circle elevation-2" style="width: 34px; height: 34px; object-fit: cover; background: #ffffff; border: 1px solid rgba(255,255,255,0.2);">
+            @elseif(!empty($currentAppName) && $currentAppName !== 'Vendora Shopee Management')
+                <img src="https://ui-avatars.com/api/?name={{ urlencode($currentAppName) }}&background=0D9488&color=fff&bold=true&rounded=true" alt="Logo" class="brand-image img-circle elevation-2" style="width: 34px; height: 34px; object-fit: cover; border: 1px solid rgba(255,255,255,0.2);" onerror="this.src='{{ asset('images/logo.png') }}'">
             @else
-                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="brand-image img-circle elevation-2" style="width: 34px; height: 34px; object-fit: cover; background: #ffffff; border: 1px solid rgba(255,255,255,0.2);" onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($currentAppName ?? 'Vendora') }}&background=0D9488&color=fff'">
+                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="brand-image img-circle elevation-2" style="width: 34px; height: 34px; object-fit: cover; background: #ffffff; border: 1px solid rgba(255,255,255,0.2);" onerror="this.src='https://ui-avatars.com/api/?name=Vendora&background=0D9488&color=fff'">
             @endif
             <div class="d-flex flex-column text-truncate" style="max-width: 175px; line-height: 1.25;">
                 <span class="brand-text font-weight-bold text-truncate" style="font-size: 13.5px;" title="{{ $currentAppName ?? 'Vendora Shopee Management' }}">

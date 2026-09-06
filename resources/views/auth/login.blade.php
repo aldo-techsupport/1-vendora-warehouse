@@ -147,8 +147,10 @@
         <div class="brand-icon-circle p-1 bg-white shadow" style="overflow: hidden;">
             @if(!empty($currentAppLogo))
                 <img src="{{ $currentAppLogo }}" alt="Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
+            @elseif(!empty($currentAppName) && $currentAppName !== 'Vendora Shopee Management')
+                <img src="https://ui-avatars.com/api/?name={{ urlencode($currentAppName) }}&background=0D9488&color=fff&bold=true&rounded=true" alt="Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;" onerror="this.src='{{ asset('images/logo.png') }}'">
             @else
-                <img src="{{ asset('images/logo.png') }}" alt="Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;" onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($currentAppName ?? 'Vendora') }}&background=0D9488&color=fff'">
+                <img src="{{ asset('images/logo.png') }}" alt="Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;" onerror="this.src='https://ui-avatars.com/api/?name=Vendora&background=0D9488&color=fff'">
             @endif
         </div>
         <h4 class="font-weight-bold mb-1" style="letter-spacing: -0.5px;">{{ $currentAppName ?? 'Vendora Shopee Management' }}</h4>

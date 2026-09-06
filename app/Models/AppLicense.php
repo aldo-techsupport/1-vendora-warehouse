@@ -56,11 +56,30 @@ class AppLicense extends Model
         return true;
     }
 
+    public function getClientNameAttribute($value): ?string
+    {
+        if (!empty($value)) {
+            return $value;
+        }
+
+        return $this->raw_data['client_name']
+            ?? $this->raw_data['company_name']
+            ?? $this->raw_data['branding']['client_name']
+            ?? $this->raw_data['branding']['company_name']
+            ?? null;
+    }
+
     public function getEffectiveAppNameAttribute(): string
     {
-        return !empty($this->custom_app_name)
-            ? $this->custom_app_name
-            : config('app.name', 'Vendora Shopee Management');
+        if (!empty($this->custom_app_name)) {
+            return $this->custom_app_name;
+        }
+
+        if (!empty($this->client_name)) {
+            return $this->client_name;
+        }
+
+        return config('app.name', 'Vendora Shopee Management');
     }
 
     public function getEffectiveWarehouseNameAttribute(): string

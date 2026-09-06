@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 class LicenseService
 {
     protected string $serverUrl;
+
     protected ?string $defaultKey;
 
     public function __construct()
@@ -33,7 +34,6 @@ class LicenseService
             ->connectTimeout(25)
             ->timeout($timeout)
             ->withOptions([
-                'force_ip_resolve' => 'v4',
                 'version' => 1.1,
             ]);
     }
@@ -52,6 +52,7 @@ class LicenseService
 
         if (Cache::has('app_hardware_id')) {
             $cachedHwid = Cache::get('app_hardware_id');
+
             return $cachedHwid;
         }
 
@@ -61,17 +62,17 @@ class LicenseService
             try {
                 $cmd = 'powershell -NoProfile -NonInteractive -Command "(Get-CimInstance Win32_ComputerSystemProduct).UUID; (Get-CimInstance Win32_Processor).ProcessorId; (Get-CimInstance Win32_DiskDrive | Select-Object -First 1).SerialNumber"';
                 $output = @shell_exec($cmd);
-                if (!empty($output)) {
+                if (! empty($output)) {
                     $lines = preg_split('/[\r\n]+/', trim($output));
                     foreach ($lines as $line) {
                         $line = trim($line);
-                        if (!empty($line) && strlen($line) > 3 && $line !== 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF') {
+                        if (! empty($line) && strlen($line) > 3 && $line !== 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF') {
                             $components[] = $line;
                         }
                     }
                 }
             } catch (\Throwable $e) {
-                Log::debug('HWID PowerShell inspection exception: ' . $e->getMessage());
+                Log::debug('HWID PowerShell inspection exception: '.$e->getMessage());
             }
         } else {
             if (file_exists('/etc/machine-id')) {
@@ -89,7 +90,7 @@ class LicenseService
 
         $seed = implode('-', $components);
         $hash = strtoupper(hash('sha256', $seed));
-        $hwid = 'HWID-' . substr($hash, 0, 4) . '-' . substr($hash, 4, 4) . '-' . substr($hash, 8, 4) . '-' . substr($hash, 12, 4);
+        $hwid = 'HWID-'.substr($hash, 0, 4).'-'.substr($hash, 4, 4).'-'.substr($hash, 8, 4).'-'.substr($hash, 12, 4);
 
         $cachedHwid = $hwid;
         Cache::forever('app_hardware_id', $hwid);
@@ -141,7 +142,7 @@ class LicenseService
                 $data = $payload['data'] ?? [];
                 $licenseKey = $data['license_key'] ?? null;
 
-                if (!empty($licenseKey)) {
+                if (! empty($licenseKey)) {
                     $customAppName = $data['branding']['custom_app_name'] ?? $data['custom_app_name'] ?? null;
                     $customLogoUrl = $data['branding']['custom_logo_url'] ?? $data['custom_logo_url'] ?? null;
                     $clientName = $data['client_name'] ?? $data['client']['name'] ?? null;
@@ -160,8 +161,8 @@ class LicenseService
                             'allowed_modules' => $data['allowed_modules'] ?? [],
                             'max_users' => $data['max_users'] ?? 1,
                             'max_devices' => $data['max_devices'] ?? 1,
-                            'expires_at' => !empty($data['expires_at']) ? $data['expires_at'] : null,
-                            'is_lifetime' => !empty($data['is_lifetime']),
+                            'expires_at' => ! empty($data['expires_at']) ? $data['expires_at'] : null,
+                            'is_lifetime' => ! empty($data['is_lifetime']),
                             'last_synced_at' => now(),
                             'raw_data' => $data,
                         ]
@@ -170,7 +171,7 @@ class LicenseService
                     Cache::put('app_license_status', $appLicense->status, 3600);
                     Cache::put('app_custom_name', $customAppName, 3600);
                     Cache::put('app_custom_logo', $customLogoUrl, 3600);
-                    if (!empty($aiConfig)) {
+                    if (! empty($aiConfig)) {
                         Cache::forever('app_ai_config', $aiConfig);
                     }
 
@@ -188,11 +189,11 @@ class LicenseService
                 'status_code' => $response->status(),
             ];
         } catch (\Throwable $e) {
-            Log::warning('Gagal auto-restore lisensi via HWID: ' . $e->getMessage());
+            Log::warning('Gagal auto-restore lisensi via HWID: '.$e->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Koneksi ke backend server gagal saat memeriksa HWID: ' . $e->getMessage(),
+                'message' => 'Koneksi ke backend server gagal saat memeriksa HWID: '.$e->getMessage(),
             ];
         }
     }
@@ -219,15 +220,15 @@ class LicenseService
     public function verifyAndSync(?string $key = null, ?string $serverUrl = null): array
     {
         // Support flexible argument order: verifyAndSync(url, key) or verifyAndSync(key, url)
-        if (!empty($key) && (str_starts_with($key, 'http://') || str_starts_with($key, 'https://'))) {
+        if (! empty($key) && (str_starts_with($key, 'http://') || str_starts_with($key, 'https://'))) {
             $temp = $key;
             $key = $serverUrl;
             $serverUrl = $temp;
         }
 
-        if (!empty($serverUrl)) {
+        if (! empty($serverUrl)) {
             $cleanedUrl = rtrim($serverUrl, '/');
-            if (!str_contains($cleanedUrl, '/api/v1')) {
+            if (! str_contains($cleanedUrl, '/api/v1')) {
                 $cleanedUrl .= '/api/v1';
             }
             $this->serverUrl = $cleanedUrl;
@@ -282,8 +283,8 @@ class LicenseService
                         'allowed_modules' => $data['allowed_modules'] ?? [],
                         'max_users' => $data['max_users'] ?? 1,
                         'max_devices' => $data['max_devices'] ?? 1,
-                        'expires_at' => !empty($data['expires_at']) ? $data['expires_at'] : null,
-                        'is_lifetime' => !empty($data['is_lifetime']),
+                        'expires_at' => ! empty($data['expires_at']) ? $data['expires_at'] : null,
+                        'is_lifetime' => ! empty($data['is_lifetime']),
                         'last_synced_at' => now(),
                         'raw_data' => $data,
                     ]
@@ -293,7 +294,7 @@ class LicenseService
                 Cache::put('app_license_status', $appLicense->status, 3600);
                 Cache::put('app_custom_name', $customAppName, 3600);
                 Cache::put('app_custom_logo', $customLogoUrl, 3600);
-                if (!empty($aiConfig)) {
+                if (! empty($aiConfig)) {
                     Cache::forever('app_ai_config', $aiConfig);
                 }
 
@@ -313,7 +314,7 @@ class LicenseService
                         'machine_id' => $machineId,
                         'device_name' => $deviceName,
                         'app_version' => '1.0.0',
-                        'os_info' => php_uname('s') . ' ' . php_uname('r'),
+                        'os_info' => php_uname('s').' '.php_uname('r'),
                     ]);
 
                     if ($activateRes->successful()) {
@@ -338,8 +339,8 @@ class LicenseService
                                 'allowed_modules' => $data['allowed_modules'] ?? [],
                                 'max_users' => $data['max_users'] ?? 1,
                                 'max_devices' => $data['max_devices'] ?? 1,
-                                'expires_at' => !empty($data['expires_at']) ? $data['expires_at'] : null,
-                                'is_lifetime' => !empty($data['is_lifetime']),
+                                'expires_at' => ! empty($data['expires_at']) ? $data['expires_at'] : null,
+                                'is_lifetime' => ! empty($data['is_lifetime']),
                                 'last_synced_at' => now(),
                                 'raw_data' => $data,
                             ]
@@ -348,7 +349,7 @@ class LicenseService
                         Cache::put('app_license_status', $appLicense->status, 3600);
                         Cache::put('app_custom_name', $customAppName, 3600);
                         Cache::put('app_custom_logo', $customLogoUrl, 3600);
-                        if (!empty($aiConfig)) {
+                        if (! empty($aiConfig)) {
                             Cache::forever('app_ai_config', $aiConfig);
                         }
 
@@ -376,11 +377,11 @@ class LicenseService
                 ];
             }
         } catch (\Throwable $e) {
-            Log::error('Gagal menghubungi License Server Backend: ' . $e->getMessage());
+            Log::error('Gagal menghubungi License Server Backend: '.$e->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Koneksi ke License Cloud Server gagal: ' . $e->getMessage(),
+                'message' => 'Koneksi ke License Cloud Server gagal: '.$e->getMessage(),
             ];
         }
     }
@@ -391,7 +392,7 @@ class LicenseService
     public function getEffectiveAppName(): string
     {
         $license = $this->getLocalLicense();
-        if ($license && !empty($license->custom_app_name)) {
+        if ($license && ! empty($license->custom_app_name)) {
             return $license->custom_app_name;
         }
 
@@ -404,7 +405,7 @@ class LicenseService
     public function getEffectiveLogoUrl(): ?string
     {
         $license = $this->getLocalLicense();
-        if ($license && !empty($license->custom_logo_url)) {
+        if ($license && ! empty($license->custom_logo_url)) {
             return $license->custom_logo_url;
         }
 
@@ -417,12 +418,12 @@ class LicenseService
     public function getAiConfig(): ?array
     {
         $cached = Cache::get('app_ai_config');
-        if (!empty($cached) && is_array($cached)) {
+        if (! empty($cached) && is_array($cached)) {
             return $cached;
         }
 
         $license = $this->getLocalLicense();
-        if ($license && !empty($license->raw_data['ai_config'])) {
+        if ($license && ! empty($license->raw_data['ai_config'])) {
             return $license->raw_data['ai_config'];
         }
 
@@ -433,6 +434,7 @@ class LicenseService
                 $cfg = $res->json('data');
                 if ($cfg) {
                     Cache::put('app_ai_config', $cfg, 3600);
+
                     return $cfg;
                 }
             }

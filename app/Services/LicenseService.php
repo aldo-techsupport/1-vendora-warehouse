@@ -25,16 +25,17 @@ class LicenseService
     }
 
     /**
-     * Standardized HTTP client with IPv4 enforcement to prevent Windows cURL timeout.
+     * Standardized HTTP client with IPv4 enforcement and resilient connection timeouts.
      */
-    protected function httpClient(int $timeout = 15)
+    protected function httpClient(int $timeout = 30)
     {
         return Http::withoutVerifying()
+            ->connectTimeout(25)
+            ->timeout($timeout)
             ->withOptions([
                 'force_ip_resolve' => 'v4',
                 'version' => 1.1,
-            ])
-            ->timeout($timeout);
+            ]);
     }
 
     /**

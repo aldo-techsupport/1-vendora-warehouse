@@ -15,3 +15,30 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Laravel Storage & Cache
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
+
+/storage/app/private/*
+!/storage/app/private/.gitignore
+/storage/app/public/*
+!/storage/app/public/.gitignore
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
+
+# Media, Logs, and Machine IDs
+*.log
+*.webm
+*.mp4
+machine_id.txt

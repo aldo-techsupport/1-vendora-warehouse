@@ -108,6 +108,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('license')->name('license.')->group(function () {
         Route::get('/', [LicenseSettingController::class, 'index'])->name('index');
         Route::post('/sync', [LicenseSettingController::class, 'sync'])->name('sync');
+        Route::post('/restore-hwid', [LicenseSettingController::class, 'restoreHwid'])->name('restore-hwid');
     });
 });
 

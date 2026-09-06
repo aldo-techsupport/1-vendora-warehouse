@@ -15,8 +15,8 @@ class LicenseService
 
     public function __construct()
     {
-        $this->serverUrl = Cache::get('app_license_server_url') ?: rtrim(config('services.license.server_url', 'http://127.0.0.1:8000/api/v1'), '/');
-        $this->defaultKey = config('services.license.key', 'MDN-MEDN-WARE-2026-PRO');
+        $this->serverUrl = Cache::get('app_license_server_url') ?: rtrim(config('services.license.server_url', 'https://api.digitaltekno.web.id/api/v1'), '/');
+        $this->defaultKey = config('services.license.key', null);
     }
 
     public function getServerUrl(): string
@@ -25,23 +25,162 @@ class LicenseService
     }
 
     /**
-     * Get machine ID unique to this client installation.
+     * Get permanent Hardware ID (HWID) physically tied to this computer.
+     * Combines Motherboard UUID, Processor ID, and Primary Disk Serial.
+     * Remains identical even if Windows / Laragon is re-installed.
      */
-    public function getMachineId(): string
+    public function getHardwareId(): string
     {
-        $path = 'machine_id.txt';
-        if (Storage::disk('local')->exists($path)) {
-            $id = trim(Storage::disk('local')->get($path));
-            if (!empty($id)) {
-                return $id;
+        static $cachedHwid = null;
+        if ($cachedHwid !== null) {
+            return $cachedHwid;
+        }
+
+        if (Cache::has('app_hardware_id')) {
+            $cachedHwid = Cache::get('app_hardware_id');
+            return $cachedHwid;
+        }
+
+        $components = [];
+
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            try {
+                $cmd = 'powershell -NoProfile -NonInteractive -Command "(Get-CimInstance Win32_ComputerSystemProduct).UUID; (Get-CimInstance Win32_Processor).ProcessorId; (Get-CimInstance Win32_DiskDrive | Select-Object -First 1).SerialNumber"';
+                $output = @shell_exec($cmd);
+                if (!empty($output)) {
+                    $lines = preg_split('/[\r\n]+/', trim($output));
+                    foreach ($lines as $line) {
+                        $line = trim($line);
+                        if (!empty($line) && strlen($line) > 3 && $line !== 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF') {
+                            $components[] = $line;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::debug('HWID PowerShell inspection exception: ' . $e->getMessage());
+            }
+        } else {
+            if (file_exists('/etc/machine-id')) {
+                $components[] = trim(file_get_contents('/etc/machine-id'));
+            } elseif (file_exists('/var/lib/dbus/machine-id')) {
+                $components[] = trim(file_get_contents('/var/lib/dbus/machine-id'));
             }
         }
 
-        $raw = php_uname() . '_' . gethostname() . '_' . (isset($_SERVER['SERVER_ADDR']) ? $_SERVER['SERVER_ADDR'] : 'local');
-        $newId = 'DEV-' . strtoupper(substr(md5($raw), 0, 12));
-        Storage::disk('local')->put($path, $newId);
+        if (empty($components)) {
+            $components[] = php_uname('n');
+            $components[] = php_uname('m');
+            $components[] = gethostname() ?: 'client-pc';
+        }
 
-        return $newId;
+        $seed = implode('-', $components);
+        $hash = strtoupper(hash('sha256', $seed));
+        $hwid = 'HWID-' . substr($hash, 0, 4) . '-' . substr($hash, 4, 4) . '-' . substr($hash, 8, 4) . '-' . substr($hash, 12, 4);
+
+        $cachedHwid = $hwid;
+        Cache::forever('app_hardware_id', $hwid);
+
+        try {
+            Storage::disk('local')->put('machine_id.txt', $hwid);
+        } catch (\Throwable $e) {
+            // Ignore storage exception
+        }
+
+        return $hwid;
+    }
+
+    /**
+     * Backward-compatible alias for getHardwareId().
+     */
+    public function getMachineId(): string
+    {
+        return $this->getHardwareId();
+    }
+
+    /**
+     * Check backend cloud by HWID to automatically restore license and branding.
+     * Useful when software is fresh-installed or after database reset.
+     */
+    public function checkAndRestoreFromHwid(): array
+    {
+        $hwid = $this->getHardwareId();
+        $deviceName = gethostname() ?: 'Warehouse-Workstation';
+
+        try {
+            // Check dedicated lookup-hwid endpoint first
+            $url = "{$this->serverUrl}/license/lookup-hwid";
+            $response = Http::withoutVerifying()->timeout(8)->post($url, [
+                'machine_id' => $hwid,
+                'device_name' => $deviceName,
+            ]);
+
+            // If 404/not routed on remote server yet, try verify with machine_id
+            if ($response->status() === 404 && (str_contains($response->body(), 'Route') || str_contains($response->body(), 'not found'))) {
+                $response = Http::withoutVerifying()->timeout(8)->post("{$this->serverUrl}/license/verify", [
+                    'machine_id' => $hwid,
+                    'device_name' => $deviceName,
+                ]);
+            }
+
+            if ($response->successful()) {
+                $payload = $response->json();
+                $data = $payload['data'] ?? [];
+                $licenseKey = $data['license_key'] ?? null;
+
+                if (!empty($licenseKey)) {
+                    $customAppName = $data['branding']['custom_app_name'] ?? $data['custom_app_name'] ?? null;
+                    $customLogoUrl = $data['branding']['custom_logo_url'] ?? $data['custom_logo_url'] ?? null;
+                    $clientName = $data['client_name'] ?? $data['client']['name'] ?? null;
+                    $clientEmail = $data['client_email'] ?? $data['client']['email'] ?? null;
+                    $aiConfig = $data['ai_config'] ?? null;
+
+                    $appLicense = AppLicense::updateOrCreate(
+                        ['license_key' => $licenseKey],
+                        [
+                            'status' => $data['status'] ?? 'active',
+                            'plan' => $data['plan'] ?? 'Pro',
+                            'client_name' => $clientName,
+                            'client_email' => $clientEmail,
+                            'custom_app_name' => $customAppName,
+                            'custom_logo_url' => $customLogoUrl,
+                            'allowed_modules' => $data['allowed_modules'] ?? [],
+                            'max_users' => $data['max_users'] ?? 1,
+                            'max_devices' => $data['max_devices'] ?? 1,
+                            'expires_at' => !empty($data['expires_at']) ? $data['expires_at'] : null,
+                            'is_lifetime' => !empty($data['is_lifetime']),
+                            'last_synced_at' => now(),
+                            'raw_data' => $data,
+                        ]
+                    );
+
+                    Cache::put('app_license_status', $appLicense->status, 3600);
+                    Cache::put('app_custom_name', $customAppName, 3600);
+                    Cache::put('app_custom_logo', $customLogoUrl, 3600);
+                    if (!empty($aiConfig)) {
+                        Cache::forever('app_ai_config', $aiConfig);
+                    }
+
+                    return [
+                        'success' => true,
+                        'message' => 'Hardware ID dikenali! Lisensi dan branding berhasil dipulihkan secara otomatis.',
+                        'license' => $appLicense,
+                    ];
+                }
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('message') ?? 'Perangkat (HWID) belum terdaftar dengan lisensi aktif di cloud.',
+                'status_code' => $response->status(),
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Gagal auto-restore lisensi via HWID: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Koneksi ke backend server gagal saat memeriksa HWID: ' . $e->getMessage(),
+            ];
+        }
     }
 
     /**
@@ -81,12 +220,18 @@ class LicenseService
             Cache::forever('app_license_server_url', $this->serverUrl);
         }
 
-        $licenseKey = $key ?: $this->defaultKey;
+        $licenseKey = $key ?: ($this->getLocalLicense()?->license_key ?: $this->defaultKey);
 
         if (empty($licenseKey)) {
+            // Attempt auto-restore via HWID
+            $hwidResult = $this->checkAndRestoreFromHwid();
+            if ($hwidResult['success']) {
+                return $hwidResult;
+            }
+
             return [
                 'success' => false,
-                'message' => 'Kunci lisensi belum diatur di aplikasi.',
+                'message' => 'Kunci lisensi belum diatur di aplikasi dan Hardware ID (HWID) belum terdaftar di cloud.',
             ];
         }
 
@@ -94,7 +239,7 @@ class LicenseService
         $deviceName = gethostname() ?: 'Warehouse-Client';
 
         try {
-            $response = Http::timeout(10)->post("{$this->serverUrl}/license/verify", [
+            $response = Http::withoutVerifying()->timeout(10)->post("{$this->serverUrl}/license/verify", [
                 'license_key' => $licenseKey,
                 'machine_id' => $machineId,
                 'device_name' => $deviceName,
@@ -149,7 +294,7 @@ class LicenseService
 
                 // If machine is not yet authorized/activated, attempt activation
                 if ($response->status() === 403 && (str_contains(strtolower($message), 'activate') || str_contains(strtolower($message), 'not authorized'))) {
-                    $activateRes = Http::timeout(10)->post("{$this->serverUrl}/license/activate", [
+                    $activateRes = Http::withoutVerifying()->timeout(10)->post("{$this->serverUrl}/license/activate", [
                         'license_key' => $licenseKey,
                         'machine_id' => $machineId,
                         'device_name' => $deviceName,
@@ -269,7 +414,7 @@ class LicenseService
 
         // Attempt live fetch from Backend 2
         try {
-            $res = Http::timeout(5)->get("{$this->serverUrl}/ai/config");
+            $res = Http::withoutVerifying()->timeout(5)->get("{$this->serverUrl}/ai/config");
             if ($res->successful()) {
                 $cfg = $res->json('data');
                 if ($cfg) {

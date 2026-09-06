@@ -36,8 +36,7 @@ return [
     ],
 
     'license' => [
-        'server_url' => env('LICENSE_SERVER_URL', 'http://127.0.0.1:8000/api/v1'),
-        'key' => env('LICENSE_KEY', 'MDN-MEDN-WARE-2026-PRO'),
+        'server_url' => env('LICENSE_SERVER_URL', 'https://api.digitaltekno.web.id/api/v1'),
+        'key' => env('LICENSE_KEY', null),
     ],
-
 ];

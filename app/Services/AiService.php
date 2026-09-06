@@ -402,6 +402,7 @@ class AiService
         }
 
         $http = Http::withHeaders($headers)
+            ->withoutVerifying()
             ->timeout($timeout);
 
         $response = $http->post($url, $payload);

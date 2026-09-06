@@ -345,6 +345,9 @@ document.addEventListener('DOMContentLoaded', function() {
         setLoading(true);
         showAlert('info', '<i class="fas fa-spinner fa-spin mr-1"></i> Memeriksa pendaftaran Hardware ID di database cloud...');
 
+        const licenseKeyInput = document.getElementById('license_key');
+        const licenseKey = licenseKeyInput ? licenseKeyInput.value.trim() : '';
+
         fetch('{{ route("license.restore-hwid") }}', {
             method: 'POST',
             headers: {
@@ -352,7 +355,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                license_key: licenseKey
+            })
         })
         .then(res => res.json().then(data => ({ status: res.status, data })))
         .then(({ status, data }) => {

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Services\LicenseService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -53,7 +52,8 @@ class LicenseSettingController extends Controller
 
     public function restoreHwid(Request $request)
     {
-        $result = $this->licenseService->checkAndRestoreFromHwid();
+        $licenseKey = $request->input('license_key');
+        $result = $this->licenseService->checkAndRestoreFromHwid($licenseKey);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json($result, $result['success'] ? 200 : 422);

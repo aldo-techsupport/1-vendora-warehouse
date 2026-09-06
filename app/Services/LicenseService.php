@@ -116,7 +116,7 @@ class LicenseService
      * Check backend cloud by HWID to automatically restore license and branding.
      * Useful when software is fresh-installed or after database reset.
      */
-    public function checkAndRestoreFromHwid(): array
+    public function checkAndRestoreFromHwid(?string $fallbackKey = null): array
     {
         $hwid = $this->getHardwareId();
         $deviceName = gethostname() ?: 'Warehouse-Workstation';
@@ -145,7 +145,7 @@ class LicenseService
                 if (! empty($licenseKey)) {
                     $customAppName = $data['branding']['custom_app_name'] ?? $data['custom_app_name'] ?? null;
                     $customLogoUrl = $data['branding']['custom_logo_url'] ?? $data['custom_logo_url'] ?? null;
-                    $clientName = $data['client_name'] ?? $data['client']['name'] ?? null;
+                    $clientName = $data['client_name'] ?? $data['client']['name'] ?? $data['branding']['client_name'] ?? null;
                     $clientEmail = $data['client_email'] ?? $data['client']['email'] ?? null;
                     $aiConfig = $data['ai_config'] ?? null;
 
@@ -179,6 +179,19 @@ class LicenseService
                         'success' => true,
                         'message' => 'Hardware ID dikenali! Lisensi dan branding berhasil dipulihkan secara otomatis.',
                         'license' => $appLicense,
+                    ];
+                }
+            }
+
+            // If lookup by HWID alone was not found, try activating with candidate key (fallback key, local DB key, or config default key)
+            $candidateKey = $fallbackKey ?: ($this->getLocalLicense()?->license_key ?: $this->defaultKey);
+            if (! empty($candidateKey)) {
+                $syncResult = $this->verifyAndSync($candidateKey);
+                if ($syncResult['success']) {
+                    return [
+                        'success' => true,
+                        'message' => 'Hardware ID berhasil didaftarkan dan lisensi aktif berhasil dipulihkan!',
+                        'license' => $syncResult['license'] ?? null,
                     ];
                 }
             }
@@ -254,28 +267,42 @@ class LicenseService
         $deviceName = gethostname() ?: 'Warehouse-Client';
 
         try {
-            $response = $this->httpClient(15)->post("{$this->serverUrl}/license/verify", [
+            // 1. Attempt to activate/bind this Hardware ID to the license on cloud server
+            $activateRes = $this->httpClient(15)->post("{$this->serverUrl}/license/activate", [
                 'license_key' => $licenseKey,
                 'machine_id' => $machineId,
                 'device_name' => $deviceName,
+                'app_version' => '1.0.0',
+                'os_info' => php_uname('s').' '.php_uname('r'),
             ]);
+
+            $response = $activateRes;
+
+            // 2. Fallback to /verify if /activate is not supported (404)
+            if ($response->status() === 404) {
+                $response = $this->httpClient(15)->post("{$this->serverUrl}/license/verify", [
+                    'license_key' => $licenseKey,
+                    'machine_id' => $machineId,
+                    'device_name' => $deviceName,
+                ]);
+            }
 
             if ($response->successful()) {
                 $payload = $response->json();
                 $data = $payload['data'] ?? [];
 
-                // Extract custom branding
+                // Extract custom branding and client info
                 $customAppName = $data['branding']['custom_app_name'] ?? $data['custom_app_name'] ?? null;
                 $customLogoUrl = $data['branding']['custom_logo_url'] ?? $data['custom_logo_url'] ?? null;
-                $clientName = $data['client']['name'] ?? null;
-                $clientEmail = $data['client']['email'] ?? null;
+                $clientName = $data['client_name'] ?? $data['client']['name'] ?? $data['branding']['client_name'] ?? null;
+                $clientEmail = $data['client_email'] ?? $data['client']['email'] ?? null;
                 $aiConfig = $data['ai_config'] ?? null;
 
                 $appLicense = AppLicense::updateOrCreate(
                     ['license_key' => $licenseKey],
                     [
                         'status' => $data['status'] ?? 'active',
-                        'plan' => $data['plan'] ?? 'Trial',
+                        'plan' => $data['plan'] ?? 'Pro',
                         'client_name' => $clientName,
                         'client_email' => $clientEmail,
                         'custom_app_name' => $customAppName,
@@ -300,69 +327,12 @@ class LicenseService
 
                 return [
                     'success' => true,
-                    'message' => 'Lisensi, data branding toko, dan pengaturan AI berhasil disinkronkan!',
+                    'message' => 'Lisensi & Hardware ID (HWID) berhasil diaktivasi dan disinkronkan!',
                     'license' => $appLicense,
                 ];
             } else {
                 $errorData = $response->json();
-                $message = $errorData['message'] ?? 'Verifikasi lisensi gagal pada server backend.';
-
-                // If machine is not yet authorized/activated, attempt activation
-                if ($response->status() === 403 && (str_contains(strtolower($message), 'activate') || str_contains(strtolower($message), 'not authorized'))) {
-                    $activateRes = $this->httpClient(15)->post("{$this->serverUrl}/license/activate", [
-                        'license_key' => $licenseKey,
-                        'machine_id' => $machineId,
-                        'device_name' => $deviceName,
-                        'app_version' => '1.0.0',
-                        'os_info' => php_uname('s').' '.php_uname('r'),
-                    ]);
-
-                    if ($activateRes->successful()) {
-                        $payload = $activateRes->json();
-                        $data = $payload['data'] ?? [];
-
-                        $customAppName = $data['branding']['custom_app_name'] ?? $data['custom_app_name'] ?? null;
-                        $customLogoUrl = $data['branding']['custom_logo_url'] ?? $data['custom_logo_url'] ?? null;
-                        $clientName = $data['client']['name'] ?? null;
-                        $clientEmail = $data['client']['email'] ?? null;
-                        $aiConfig = $data['ai_config'] ?? null;
-
-                        $appLicense = AppLicense::updateOrCreate(
-                            ['license_key' => $licenseKey],
-                            [
-                                'status' => $data['status'] ?? 'active',
-                                'plan' => $data['plan'] ?? 'Trial',
-                                'client_name' => $clientName,
-                                'client_email' => $clientEmail,
-                                'custom_app_name' => $customAppName,
-                                'custom_logo_url' => $customLogoUrl,
-                                'allowed_modules' => $data['allowed_modules'] ?? [],
-                                'max_users' => $data['max_users'] ?? 1,
-                                'max_devices' => $data['max_devices'] ?? 1,
-                                'expires_at' => ! empty($data['expires_at']) ? $data['expires_at'] : null,
-                                'is_lifetime' => ! empty($data['is_lifetime']),
-                                'last_synced_at' => now(),
-                                'raw_data' => $data,
-                            ]
-                        );
-
-                        Cache::put('app_license_status', $appLicense->status, 3600);
-                        Cache::put('app_custom_name', $customAppName, 3600);
-                        Cache::put('app_custom_logo', $customLogoUrl, 3600);
-                        if (! empty($aiConfig)) {
-                            Cache::forever('app_ai_config', $aiConfig);
-                        }
-
-                        return [
-                            'success' => true,
-                            'message' => 'Perangkat berhasil diaktivasi, branding toko & AI telah disinkronkan!',
-                            'license' => $appLicense,
-                        ];
-                    } else {
-                        $actError = $activateRes->json();
-                        $message = $actError['message'] ?? $message;
-                    }
-                }
+                $message = $errorData['message'] ?? 'Verifikasi atau aktivasi lisensi gagal pada server backend.';
 
                 // Update local status if record exists
                 $local = AppLicense::where('license_key', $licenseKey)->first();

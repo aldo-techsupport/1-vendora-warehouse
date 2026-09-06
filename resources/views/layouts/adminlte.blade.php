@@ -306,7 +306,12 @@
             <!-- Mobile Brand Title in Header -->
             <li class="nav-item d-inline-block d-lg-none ml-1">
                 <span class="font-weight-bold text-dark d-inline-flex align-items-center" style="font-size: 13.5px;">
-                    <img src="{{ asset('images/logo.png') }}" alt="Vendora" class="rounded-circle shadow-xs mr-1" style="width: 24px; height: 24px; object-fit: cover; border: 1px solid rgba(0,0,0,0.1);"> Vendora
+                    @if(!empty($currentAppLogo))
+                        <img src="{{ $currentAppLogo }}" alt="Logo" class="rounded-circle shadow-xs mr-1" style="width: 24px; height: 24px; object-fit: cover; border: 1px solid rgba(0,0,0,0.1);">
+                    @else
+                        <img src="{{ asset('images/logo.png') }}" alt="Logo" class="rounded-circle shadow-xs mr-1" style="width: 24px; height: 24px; object-fit: cover; border: 1px solid rgba(0,0,0,0.1);">
+                    @endif
+                    <span class="text-truncate" style="max-width: 150px;">{{ $currentAppName ?? 'Vendora' }}</span>
                 </span>
             </li>
         </ul>
@@ -426,15 +431,20 @@
     <!-- Main Sidebar Container -->
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
         <!-- Brand Logo -->
-        <a href="{{ route('dashboard') }}" class="brand-link d-flex align-items-center" style="gap: 8px;">
+        <a href="{{ route('dashboard') }}" class="brand-link d-flex align-items-center" style="gap: 10px; padding: 10px 14px;">
             @if(!empty($currentAppLogo))
-                <img src="{{ $currentAppLogo }}" alt="Logo" class="brand-image img-circle elevation-2" style="width: 33px; height: 33px; object-fit: cover; background: #ffffff; border: 1px solid rgba(255,255,255,0.2);">
+                <img src="{{ $currentAppLogo }}" alt="Logo" class="brand-image img-circle elevation-2" style="width: 34px; height: 34px; object-fit: cover; background: #ffffff; border: 1px solid rgba(255,255,255,0.2);">
             @else
-                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="brand-image img-circle elevation-2" style="width: 33px; height: 33px; object-fit: cover; background: #ffffff; border: 1px solid rgba(255,255,255,0.2);" onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($currentAppName ?? 'Vendora') }}&background=0D9488&color=fff'">
+                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="brand-image img-circle elevation-2" style="width: 34px; height: 34px; object-fit: cover; background: #ffffff; border: 1px solid rgba(255,255,255,0.2);" onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($currentAppName ?? 'Vendora') }}&background=0D9488&color=fff'">
             @endif
-            <span class="brand-text font-weight-bold text-truncate" style="max-width: 175px; font-size: 13.5px;" title="{{ $currentAppName ?? 'Vendora Shopee Management' }}">
-                {{ $currentAppName ?? 'Vendora Shopee Management' }}
-            </span>
+            <div class="d-flex flex-column text-truncate" style="max-width: 175px; line-height: 1.25;">
+                <span class="brand-text font-weight-bold text-truncate" style="font-size: 13.5px;" title="{{ $currentAppName ?? 'Vendora Shopee Management' }}">
+                    {{ $currentAppName ?? 'Vendora Shopee Management' }}
+                </span>
+                <small class="text-white-50 text-truncate" style="font-size: 10px;" title="{{ $currentWarehouseName ?? 'Gudang Utama' }}">
+                    <i class="fas fa-warehouse mr-1 text-info"></i>{{ $currentWarehouseName ?? 'Gudang Utama' }}
+                </small>
+            </div>
         </a>
 
         <!-- Sidebar -->

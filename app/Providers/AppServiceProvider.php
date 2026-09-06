@@ -44,18 +44,23 @@ class AppServiceProvider extends ServiceProvider
                 $appName = ($license && !empty($license->custom_app_name))
                     ? $license->custom_app_name
                     : config('app.name', 'Vendora Shopee Management');
+                $warehouseName = ($license && !empty($license->custom_warehouse_name))
+                    ? $license->custom_warehouse_name
+                    : 'Gudang Utama';
                 $appLogo = ($license && !empty($license->custom_logo_url))
                     ? $license->custom_logo_url
                     : null;
                 $appLicense = $license;
             } catch (\Throwable $e) {
                 $appName = config('app.name', 'Vendora Shopee Management');
+                $warehouseName = 'Gudang Utama';
                 $appLogo = null;
                 $appLicense = null;
             }
 
             $view->with([
                 'currentAppName' => $appName,
+                'currentWarehouseName' => $warehouseName,
                 'currentAppLogo' => $appLogo,
                 'currentLicense' => $appLicense,
             ]);

@@ -191,8 +191,11 @@
                 <h5 class="font-weight-bold text-dark mb-1">
                     {{ $license?->custom_app_name ?: ($currentAppName ?? 'Vendora Shopee Management') }}
                 </h5>
+                <p class="text-primary font-weight-bold mb-1" style="font-size: 13px;">
+                    <i class="fas fa-warehouse mr-1 text-info"></i> {{ $license?->custom_warehouse_name ?: ($currentWarehouseName ?? 'Gudang Utama') }}
+                </p>
                 <p class="text-muted mb-3" style="font-size: 12px;">
-                    @if(!empty($license?->custom_app_name))
+                    @if(!empty($license?->custom_app_name) || !empty($license?->custom_warehouse_name))
                         <span class="badge badge-success px-2 py-0.5">White-label Custom</span>
                     @else
                         <span class="badge badge-secondary px-2 py-0.5">Default App Name</span>

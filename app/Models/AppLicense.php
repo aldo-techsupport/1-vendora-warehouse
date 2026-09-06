@@ -18,6 +18,7 @@ class AppLicense extends Model
         'client_name',
         'client_email',
         'custom_app_name',
+        'custom_warehouse_name',
         'custom_logo_url',
         'allowed_modules',
         'max_users',
@@ -60,6 +61,13 @@ class AppLicense extends Model
         return !empty($this->custom_app_name)
             ? $this->custom_app_name
             : config('app.name', 'Vendora Shopee Management');
+    }
+
+    public function getEffectiveWarehouseNameAttribute(): string
+    {
+        return !empty($this->custom_warehouse_name)
+            ? $this->custom_warehouse_name
+            : 'Gudang Utama';
     }
 
     public function getEffectiveLogoUrlAttribute(): ?string

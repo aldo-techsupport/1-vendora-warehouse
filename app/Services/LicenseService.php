@@ -144,6 +144,7 @@ class LicenseService
 
                 if (! empty($licenseKey)) {
                     $customAppName = $data['branding']['custom_app_name'] ?? $data['custom_app_name'] ?? null;
+                    $customWarehouseName = $data['branding']['custom_warehouse_name'] ?? $data['custom_warehouse_name'] ?? $data['warehouse_name'] ?? null;
                     $customLogoUrl = $data['branding']['custom_logo_url'] ?? $data['custom_logo_url'] ?? null;
                     $clientName = $data['client_name'] ?? $data['client']['name'] ?? $data['branding']['client_name'] ?? null;
                     $clientEmail = $data['client_email'] ?? $data['client']['email'] ?? null;
@@ -157,6 +158,7 @@ class LicenseService
                             'client_name' => $clientName,
                             'client_email' => $clientEmail,
                             'custom_app_name' => $customAppName,
+                            'custom_warehouse_name' => $customWarehouseName,
                             'custom_logo_url' => $customLogoUrl,
                             'allowed_modules' => $data['allowed_modules'] ?? [],
                             'max_users' => $data['max_users'] ?? 1,
@@ -170,6 +172,7 @@ class LicenseService
 
                     Cache::put('app_license_status', $appLicense->status, 3600);
                     Cache::put('app_custom_name', $customAppName, 3600);
+                    Cache::put('app_custom_warehouse', $customWarehouseName, 3600);
                     Cache::put('app_custom_logo', $customLogoUrl, 3600);
                     if (! empty($aiConfig)) {
                         Cache::forever('app_ai_config', $aiConfig);
@@ -293,6 +296,7 @@ class LicenseService
 
                 // Extract custom branding and client info
                 $customAppName = $data['branding']['custom_app_name'] ?? $data['custom_app_name'] ?? null;
+                $customWarehouseName = $data['branding']['custom_warehouse_name'] ?? $data['custom_warehouse_name'] ?? $data['warehouse_name'] ?? null;
                 $customLogoUrl = $data['branding']['custom_logo_url'] ?? $data['custom_logo_url'] ?? null;
                 $clientName = $data['client_name'] ?? $data['client']['name'] ?? $data['branding']['client_name'] ?? null;
                 $clientEmail = $data['client_email'] ?? $data['client']['email'] ?? null;
@@ -306,6 +310,7 @@ class LicenseService
                         'client_name' => $clientName,
                         'client_email' => $clientEmail,
                         'custom_app_name' => $customAppName,
+                        'custom_warehouse_name' => $customWarehouseName,
                         'custom_logo_url' => $customLogoUrl,
                         'allowed_modules' => $data['allowed_modules'] ?? [],
                         'max_users' => $data['max_users'] ?? 1,
@@ -320,6 +325,7 @@ class LicenseService
                 // Update cache
                 Cache::put('app_license_status', $appLicense->status, 3600);
                 Cache::put('app_custom_name', $customAppName, 3600);
+                Cache::put('app_custom_warehouse', $customWarehouseName, 3600);
                 Cache::put('app_custom_logo', $customLogoUrl, 3600);
                 if (! empty($aiConfig)) {
                     Cache::forever('app_ai_config', $aiConfig);

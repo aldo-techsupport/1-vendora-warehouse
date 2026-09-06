@@ -152,7 +152,9 @@
             @endif
         </div>
         <h4 class="font-weight-bold mb-1" style="letter-spacing: -0.5px;">{{ $currentAppName ?? 'Vendora Shopee Management' }}</h4>
-        <p class="mb-0 text-white-50" style="font-size: 13px;">Sistem Manajemen Toko & Sinkronisasi Shopee</p>
+        <p class="mb-0 text-white-50" style="font-size: 12.5px;">
+            <i class="fas fa-warehouse mr-1 text-warning"></i> {{ $currentWarehouseName ?? 'Gudang Utama' }} &bull; Sistem Manajemen Toko
+        </p>
     </div>
 
     <!-- Body -->

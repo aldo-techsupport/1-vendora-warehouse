@@ -61,3 +61,30 @@ test('license page renders correctly with custom app branding when license exist
     $response->assertSee('Busana Modern Warehouse');
     $response->assertSee('White-label Custom');
 });
+
+test('license page and layout render custom warehouse name and logo', function () {
+    AppLicense::truncate();
+    AppLicense::create([
+        'license_key' => 'MDN-CUSTOM-WAREHOUSE-2026',
+        'client_name' => 'Toko Sentosa Jaya',
+        'client_email' => 'owner@sentosajaya.com',
+        'plan' => 'enterprise',
+        'status' => 'active',
+        'max_devices' => 5,
+        'max_users' => 10,
+        'custom_app_name' => 'Sentosa Fashion POS',
+        'custom_warehouse_name' => 'Gudang Utama Rungkut',
+        'custom_logo_url' => 'https://example.com/sentosa_logo.png',
+        'is_lifetime' => true,
+        'allowed_modules' => ['dashboard', 'orders', 'license'],
+    ]);
+
+    $response = $this->actingAs($this->user)
+        ->get(route('license.index'));
+
+    $response->assertStatus(200);
+    $response->assertSee('Sentosa Fashion POS');
+    $response->assertSee('Gudang Utama Rungkut');
+    $response->assertSee('https://example.com/sentosa_logo.png');
+});
+

@@ -25,6 +25,19 @@ class LicenseService
     }
 
     /**
+     * Standardized HTTP client with IPv4 enforcement to prevent Windows cURL timeout.
+     */
+    protected function httpClient(int $timeout = 15)
+    {
+        return Http::withoutVerifying()
+            ->withOptions([
+                'force_ip_resolve' => 'v4',
+                'version' => 1.1,
+            ])
+            ->timeout($timeout);
+    }
+
+    /**
      * Get permanent Hardware ID (HWID) physically tied to this computer.
      * Combines Motherboard UUID, Processor ID, and Primary Disk Serial.
      * Remains identical even if Windows / Laragon is re-installed.
@@ -109,14 +122,14 @@ class LicenseService
         try {
             // Check dedicated lookup-hwid endpoint first
             $url = "{$this->serverUrl}/license/lookup-hwid";
-            $response = Http::withoutVerifying()->timeout(8)->post($url, [
+            $response = $this->httpClient(15)->post($url, [
                 'machine_id' => $hwid,
                 'device_name' => $deviceName,
             ]);
 
             // If 404/not routed on remote server yet, try verify with machine_id
             if ($response->status() === 404 && (str_contains($response->body(), 'Route') || str_contains($response->body(), 'not found'))) {
-                $response = Http::withoutVerifying()->timeout(8)->post("{$this->serverUrl}/license/verify", [
+                $response = $this->httpClient(15)->post("{$this->serverUrl}/license/verify", [
                     'machine_id' => $hwid,
                     'device_name' => $deviceName,
                 ]);
@@ -239,7 +252,7 @@ class LicenseService
         $deviceName = gethostname() ?: 'Warehouse-Client';
 
         try {
-            $response = Http::withoutVerifying()->timeout(10)->post("{$this->serverUrl}/license/verify", [
+            $response = $this->httpClient(15)->post("{$this->serverUrl}/license/verify", [
                 'license_key' => $licenseKey,
                 'machine_id' => $machineId,
                 'device_name' => $deviceName,
@@ -294,7 +307,7 @@ class LicenseService
 
                 // If machine is not yet authorized/activated, attempt activation
                 if ($response->status() === 403 && (str_contains(strtolower($message), 'activate') || str_contains(strtolower($message), 'not authorized'))) {
-                    $activateRes = Http::withoutVerifying()->timeout(10)->post("{$this->serverUrl}/license/activate", [
+                    $activateRes = $this->httpClient(15)->post("{$this->serverUrl}/license/activate", [
                         'license_key' => $licenseKey,
                         'machine_id' => $machineId,
                         'device_name' => $deviceName,
@@ -414,7 +427,7 @@ class LicenseService
 
         // Attempt live fetch from Backend 2
         try {
-            $res = Http::withoutVerifying()->timeout(5)->get("{$this->serverUrl}/ai/config");
+            $res = $this->httpClient(10)->get("{$this->serverUrl}/ai/config");
             if ($res->successful()) {
                 $cfg = $res->json('data');
                 if ($cfg) {

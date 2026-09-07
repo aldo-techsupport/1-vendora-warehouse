@@ -70,31 +70,55 @@
         </div>
     </div>
 
-    <!-- Webhook & OAuth Setup Helper -->
+    <!-- Webhook & OAuth Setup Helper via Cloud Gateway -->
     <div class="col-lg-5">
+        <!-- Cloud Gateway Status Card -->
+        <div class="card shadow-sm border-0 mb-4 border-left-primary">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-dark">
+                    <i class="fas fa-cloud text-primary mr-1"></i> Shopee Cloud Gateway Relay
+                </h6>
+                <span class="badge badge-success px-2 py-1"><i class="fas fa-check-circle mr-1"></i> Aktif</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted text-sm mb-3">
+                    Komputer gudang ini terhubung ke <strong>Backend Cloud Gateway</strong>. Server Shopee mengirim notifikasi webhook ke Cloud publik, lalu stok gudang lokal otomatis tersinkronisasi.
+                </p>
+                <form action="{{ route('shopee.sync-cloud') }}" method="POST" class="mb-2">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-primary btn-block font-weight-bold py-2 shadow-sm">
+                        <i class="fas fa-sync-alt mr-1"></i> Tarik & Sinkron Pesanan Cloud Sekarang
+                    </button>
+                </form>
+                <small class="text-muted d-block text-center">
+                    <i class="fas fa-info-circle mr-1"></i> Otomatis berjalan di background via scheduler / cron.
+                </small>
+            </div>
+        </div>
+
         <!-- OAuth Card -->
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white py-3">
                 <h6 class="m-0 font-weight-bold text-dark">
-                    <i class="fas fa-shield-alt text-primary mr-1"></i> Otorisasi Toko (OAuth)
+                    <i class="fas fa-shield-alt text-primary mr-1"></i> Otorisasi Toko (OAuth Callback)
                 </h6>
             </div>
             <div class="card-body">
                 <p class="text-muted text-sm mb-3">
-                    Shopee Open API v2 menggunakan OAuth untuk menghubungkan akun toko ke sistem warehouse ini.
+                    Shopee Open API v2 menggunakan OAuth untuk menghubungkan akun toko. Daftarkan URL callback publik berikut:
                 </p>
 
                 <div class="form-group">
-                    <label class="text-xs text-uppercase font-weight-bold text-muted">Redirect Callback URL:</label>
+                    <label class="text-xs text-uppercase font-weight-bold text-muted">Redirect Callback URL (Cloud):</label>
                     <div class="input-group">
-                        <input type="text" class="form-control form-control-sm bg-light" value="{{ $callbackUrl }}" readonly id="callbackUrlInput">
+                        <input type="text" class="form-control form-control-sm bg-light font-monospace text-xs" value="{{ $callbackUrl }}" readonly id="callbackUrlInput">
                         <div class="input-group-append">
                             <button class="btn btn-outline-secondary btn-sm" type="button" onclick="navigator.clipboard.writeText(document.getElementById('callbackUrlInput').value); alert('URL Callback tersalin!')">
                                 <i class="fas fa-copy"></i>
                             </button>
                         </div>
                     </div>
-                    <small class="text-muted">Daftarkan URL di atas pada menu App Redirect URL di Shopee Open Platform.</small>
+                    <small class="text-muted">Daftarkan URL ini pada menu <strong>App Redirect URL</strong> di Shopee Open Platform Console.</small>
                 </div>
 
                 @if($authUrl)
@@ -113,28 +137,29 @@
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white py-3">
                 <h6 class="m-0 font-weight-bold text-dark">
-                    <i class="fas fa-bolt text-danger mr-1"></i> Shopee Webhook Push Listener
+                    <i class="fas fa-bolt text-danger mr-1"></i> Shopee Webhook Push Listener (Cloud Gateway)
                 </h6>
             </div>
             <div class="card-body">
                 <p class="text-muted text-sm mb-3">
-                    Saat terjadi transaksi pembelian di Shopee, Shopee akan mengirim notifikasi webhook ke URL ini agar stok di Gudang Utama langsung terpotong seketika.
+                    Saat terjadi transaksi pembelian di Shopee, Shopee akan mengirim notifikasi webhook ke URL publik ini. Stok di Gudang Utama akan langsung terpotong.
                 </p>
 
                 <div class="form-group">
-                    <label class="text-xs text-uppercase font-weight-bold text-muted">Webhook Endpoint URL:</label>
+                    <label class="text-xs text-uppercase font-weight-bold text-muted">Webhook Endpoint URL (Cloud):</label>
                     <div class="input-group">
-                        <input type="text" class="form-control form-control-sm bg-light" value="{{ $webhookUrl }}" readonly id="webhookUrlInput">
+                        <input type="text" class="form-control form-control-sm bg-light font-monospace text-xs" value="{{ $webhookUrl }}" readonly id="webhookUrlInput">
                         <div class="input-group-append">
                             <button class="btn btn-outline-secondary btn-sm" type="button" onclick="navigator.clipboard.writeText(document.getElementById('webhookUrlInput').value); alert('URL Webhook tersalin!')">
                                 <i class="fas fa-copy"></i>
                             </button>
                         </div>
                     </div>
+                    <small class="text-muted">Daftarkan URL publik ini pada menu <strong>Push Mechanism / Webhook URL</strong> di Shopee Open Platform.</small>
                 </div>
 
                 <div class="alert alert-light border py-2 text-xs">
-                    <i class="fas fa-lock text-success mr-1"></i> Validasi signature HMAC-SHA256 aktif menggunakan <code>partner_key</code>.
+                    <i class="fas fa-lock text-success mr-1"></i> Validasi signature HMAC-SHA256 aktif di Cloud Gateway menggunakan <code>partner_key</code>.
                 </div>
             </div>
         </div>

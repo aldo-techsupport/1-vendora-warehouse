@@ -83,6 +83,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/settings', [ShopeeController::class, 'settings'])->name('settings');
             Route::post('/settings', [ShopeeController::class, 'updateSettings'])->name('settings.update');
             Route::get('/callback', [ShopeeController::class, 'handleCallback'])->name('callback');
+            Route::post('/sync-cloud', [ShopeeController::class, 'syncCloudEvents'])->name('sync-cloud');
         });
     });
 

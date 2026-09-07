@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\ShopeeOrder;
 use App\Models\ShopeeSetting;
+use App\Services\LicenseService;
+use App\Services\ShopeeCloudSyncService;
 use App\Services\ShopeeService;
 use App\Services\StockMutationService;
 use Exception;
@@ -87,16 +89,42 @@ class ShopeeController extends Controller
     public function settings()
     {
         $setting = ShopeeSetting::current();
-        $callbackUrl = route('shopee.callback');
-        $webhookUrl = route('shopee.webhook');
+        $licenseService = app(LicenseService::class);
+        $serverUrl = rtrim($licenseService->getServerUrl(), '/');
+
+        // Cloud Gateway URLs for Shopee Open Platform Console
+        $cloudWebhookUrl = "{$serverUrl}/shopee/webhook";
+        $cloudCallbackUrl = "{$serverUrl}/shopee/callback";
+
+        $callbackUrl = $cloudCallbackUrl;
+        $webhookUrl = $cloudWebhookUrl;
 
         $authUrl = '';
         if (! empty($setting->partner_id) && ! empty($setting->partner_key)) {
-            $authUrl = $this->shopeeService->getAuthPartnerUrl($callbackUrl);
+            $authUrl = $this->shopeeService->getAuthPartnerUrl($cloudCallbackUrl);
         }
 
-        return view('shopee.settings', compact('setting', 'callbackUrl', 'webhookUrl', 'authUrl'));
+        return view('shopee.settings', compact('setting', 'callbackUrl', 'webhookUrl', 'authUrl', 'serverUrl'));
     }
+
+    /**
+     * Trigger manual pull of pending Shopee events from Cloud Gateway.
+     */
+    public function syncCloudEvents(Request $request, ShopeeCloudSyncService $syncService)
+    {
+        $result = $syncService->syncPendingEvents();
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json($result, $result['success'] ? 200 : 422);
+        }
+
+        if ($result['success']) {
+            return redirect()->back()->with('success', $result['message']);
+        }
+
+        return redirect()->back()->with('error', $result['message']);
+    }
+
 
     /**
      * Update Shopee Settings.

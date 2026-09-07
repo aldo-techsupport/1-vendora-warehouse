@@ -39,22 +39,85 @@ class AppLicense extends Model
         'max_devices' => 'integer',
     ];
 
+    public const OFFLINE_GRACE_DAYS = 7;
+
     public function isValid(): bool
     {
         if ($this->status !== 'active') {
             return false;
         }
 
-        if ($this->is_lifetime) {
-            return true;
+        if (! $this->is_lifetime && $this->expires_at && $this->expires_at->isPast()) {
+            return false;
         }
 
-        if ($this->expires_at && $this->expires_at->isPast()) {
+        // Offline grace period check: If device has been offline longer than grace days limit
+        if (! $this->is_lifetime && $this->last_synced_at && $this->last_synced_at->diffInDays(now()) > self::OFFLINE_GRACE_DAYS) {
             return false;
         }
 
         return true;
     }
+
+    /**
+     * Check if the license is running in offline grace period mode (online sync failed recently).
+     */
+    public function isOfflineGraceActive(): bool
+    {
+        if (! $this->isValid()) {
+            return false;
+        }
+
+        if (! $this->last_synced_at) {
+            return false;
+        }
+
+        // Active offline grace if last sync was more than 24 hours ago but within grace period
+        return $this->last_synced_at->diffInHours(now()) >= 24;
+    }
+
+    /**
+     * Get remaining days in the offline grace period.
+     */
+    public function daysUntilOfflineExpiry(): int
+    {
+        if (! $this->last_synced_at) {
+            return 0;
+        }
+
+        $daysSinceSync = (int) $this->last_synced_at->diffInDays(now());
+
+        return max(0, self::OFFLINE_GRACE_DAYS - $daysSinceSync);
+    }
+
+    /**
+     * Get human readable reason if license is invalid.
+     */
+    public function getInvalidReason(): string
+    {
+        if ($this->status === 'expired' || (! $this->is_lifetime && $this->expires_at && $this->expires_at->isPast())) {
+            return 'Masa berlaku lisensi Anda telah berakhir pada '.($this->expires_at ? $this->expires_at->translatedFormat('d F Y') : 'hari ini').'. Silakan perpanjang lisensi Anda.';
+        }
+
+        if ($this->status === 'suspended') {
+            return 'Lisensi ini ditangguhkan (suspended) oleh administrator cloud.';
+        }
+
+        if ($this->status === 'revoked') {
+            return 'Lisensi ini telah dicabut (revoked) oleh administrator cloud.';
+        }
+
+        if (! $this->is_lifetime && $this->last_synced_at && $this->last_synced_at->diffInDays(now()) > self::OFFLINE_GRACE_DAYS) {
+            return 'Batas toleransi verifikasi offline ('.self::OFFLINE_GRACE_DAYS.' hari) telah terlampaui. Sambungkan perangkat ke internet untuk memverifikasi lisensi kembali.';
+        }
+
+        if ($this->status !== 'active') {
+            return 'Status lisensi tidak aktif ('.$this->status.').';
+        }
+
+        return 'Lisensi tidak valid.';
+    }
+
 
     public function getClientNameAttribute($value): ?string
     {

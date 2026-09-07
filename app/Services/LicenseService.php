@@ -420,4 +420,124 @@ class LicenseService
 
         return null;
     }
+
+    /**
+     * Periodic background heartbeat check to backend cloud.
+     * Throttled (runs at most once every 1 hour) and resilient to network/internet drops.
+     * If internet is offline, preserves active license status under offline grace period.
+     * If cloud explicitly responds with revoked/expired/suspended, updates local status immediately.
+     */
+    public function checkHeartbeatThrottled(): array
+    {
+        $license = $this->getLocalLicense();
+        if (! $license) {
+            return [
+                'has_license' => false,
+                'valid' => false,
+                'reason' => 'Belum ada lisensi terpasang.',
+            ];
+        }
+
+        // Throttle heartbeat to once per hour to avoid slowing down requests
+        $cacheKey = 'app_license_heartbeat_last_check';
+        if (Cache::has($cacheKey)) {
+            return [
+                'has_license' => true,
+                'valid' => $license->isValid(),
+                'throttled' => true,
+                'is_offline' => $license->isOfflineGraceActive(),
+            ];
+        }
+
+        // Lock for 1 hour
+        Cache::put($cacheKey, now()->toIso8601String(), 3600);
+
+        $machineId = $this->getMachineId();
+        $licenseKey = $license->license_key;
+
+        try {
+            // Heartbeat request with short connection timeout (8s) so we don't slow down the user
+            $response = $this->httpClient(8)->post("{$this->serverUrl}/license/heartbeat", [
+                'license_key' => $licenseKey,
+                'machine_id' => $machineId,
+                'app_version' => '1.0.0',
+            ]);
+
+            // Fallback to /verify if /heartbeat is 404
+            if ($response->status() === 404) {
+                $response = $this->httpClient(8)->post("{$this->serverUrl}/license/verify", [
+                    'license_key' => $licenseKey,
+                    'machine_id' => $machineId,
+                ]);
+            }
+
+            if ($response->successful()) {
+                $payload = $response->json();
+                $data = $payload['data'] ?? [];
+                $serverStatus = $data['status'] ?? ($payload['status'] ?? 'active');
+
+                // Update local status with cloud status
+                $license->update([
+                    'status' => $serverStatus,
+                    'last_synced_at' => now(),
+                    'expires_at' => ! empty($data['expires_at']) ? $data['expires_at'] : $license->expires_at,
+                    'is_lifetime' => isset($data['is_lifetime']) ? (bool) $data['is_lifetime'] : $license->is_lifetime,
+                ]);
+
+                Cache::put('app_license_status', $serverStatus, 3600);
+
+                return [
+                    'has_license' => true,
+                    'valid' => $license->isValid(),
+                    'status' => $serverStatus,
+                    'online' => true,
+                ];
+            }
+
+            // If server explicitly returned 401, 403, 404 (e.g. revoked, expired, deleted)
+            if (in_array($response->status(), [401, 403, 404])) {
+                $payload = $response->json();
+                $serverStatus = $payload['status'] ?? 'expired';
+
+                $license->update([
+                    'status' => $serverStatus,
+                    'last_synced_at' => now(),
+                ]);
+
+                Cache::put('app_license_status', $serverStatus, 3600);
+
+                return [
+                    'has_license' => true,
+                    'valid' => false,
+                    'status' => $serverStatus,
+                    'online' => true,
+                    'reason' => $payload['message'] ?? 'Lisensi dinonaktifkan atau kedaluwarsa di cloud.',
+                ];
+            }
+
+            // Server returned 500 or other unexpected status -> treat as temporary network issue (offline tolerance)
+            Log::info("Cloud License Heartbeat Server Warning [HTTP {$response->status()}]. Retaining local valid state.");
+
+            return [
+                'has_license' => true,
+                'valid' => $license->isValid(),
+                'is_offline' => true,
+                'status' => $license->status,
+            ];
+        } catch (\Throwable $e) {
+            // NETWORK TIMEOUT / NO INTERNET / HOST UNREACHABLE
+            // PENGKONDISIAN JARINGAN LEMAH:
+            // JANGAN matikan lisensi! Pertahankan validitas lokal dalam batas offline grace period.
+            Log::info('Cloud License Heartbeat Network Unreachable: '.$e->getMessage().'. Running in offline grace period.');
+
+            return [
+                'has_license' => true,
+                'valid' => $license->isValid(),
+                'is_offline' => true,
+                'status' => $license->status,
+                'grace_days_left' => $license->daysUntilOfflineExpiry(),
+            ];
+        }
+    }
 }
+

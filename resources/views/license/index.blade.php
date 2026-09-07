@@ -4,6 +4,45 @@
 @section('page_title', 'Lisensi & Branding Toko')
 
 @section('content')
+
+@if(!$license)
+    <div class="alert alert-warning border-left border-warning shadow-sm mb-4 py-3">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-lock fa-2x text-warning mr-3"></i>
+            <div>
+                <h6 class="font-weight-bold mb-1 text-dark">Aplikasi Belum Teraktivasi!</h6>
+                <p class="mb-0 text-muted text-sm">
+                    Seluruh fitur gudang, katalog produk, kasir, dan packing saat ini dikunci. Silakan masukkan kunci lisensi Anda pada formulir di bawah ini untuk mengaktifkan sistem.
+                </p>
+            </div>
+        </div>
+    </div>
+@elseif(!$license->isValid())
+    <div class="alert alert-danger border-left border-danger shadow-sm mb-4 py-3">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-ban fa-2x text-danger mr-3"></i>
+            <div>
+                <h6 class="font-weight-bold mb-1 text-dark">Akses Fitur Terkunci (Lisensi Tidak Aktif)</h6>
+                <p class="mb-0 text-dark text-sm">
+                    {{ $license->getInvalidReason() }}
+                </p>
+            </div>
+        </div>
+    </div>
+@elseif($license->isOfflineGraceActive())
+    <div class="alert alert-info border-left border-info shadow-sm mb-4 py-3">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-satellite-dish fa-2x text-info mr-3"></i>
+            <div>
+                <h6 class="font-weight-bold mb-1 text-dark">Mode Toleransi Offline Aktif</h6>
+                <p class="mb-0 text-muted text-sm">
+                    Koneksi ke Server Cloud belum tersambung dalam 24 jam terakhir. Sistem tetap dapat digunakan secara normal dengan batas toleransi verifikasi tersisa <strong>{{ $license->daysUntilOfflineExpiry() }} hari</strong>.
+                </p>
+            </div>
+        </div>
+    </div>
+@endif
+
 <div class="row">
     <!-- License Status Card -->
     <div class="col-lg-8 col-12">

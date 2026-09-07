@@ -576,13 +576,17 @@
 
                         <li class="nav-item">
                             <a href="{{ route('license.index') }}" class="nav-link {{ request()->routeIs('license.*') ? 'active bg-warning text-dark font-weight-bold' : '' }}">
-                                <i class="nav-icon fas fa-certificate text-warning"></i>
+                                <i class="nav-icon fas fa-certificate {{ isset($currentLicense) && $currentLicense->isValid() ? 'text-warning' : 'text-danger' }}"></i>
                                 <p>
                                     Lisensi & Toko
                                     @if(isset($currentLicense) && $currentLicense->isValid())
-                                        <span class="badge badge-success right" style="font-size: 9px;">Aktif</span>
+                                        @if($currentLicense->isOfflineGraceActive())
+                                            <span class="badge badge-warning right" style="font-size: 9px;" title="Toleransi offline aktif ({{ $currentLicense->daysUntilOfflineExpiry() }} hari)">Offline</span>
+                                        @else
+                                            <span class="badge badge-success right" style="font-size: 9px;">Aktif</span>
+                                        @endif
                                     @else
-                                        <span class="badge badge-secondary right" style="font-size: 9px;">Sync</span>
+                                        <span class="badge badge-danger right" style="font-size: 9px;">Perlu Lisensi</span>
                                     @endif
                                 </p>
                             </a>
@@ -629,6 +633,21 @@
 
     <!-- Content Wrapper. Contains page content -->
     <div class="content-wrapper bg-light">
+        @php
+            $hasValidLicense = isset($currentLicense) && $currentLicense->isValid();
+        @endphp
+        @if(!$hasValidLicense && !request()->routeIs('license.*'))
+            <div class="alert alert-danger mb-0 rounded-0 py-2 px-3 d-flex justify-content-between align-items-center" style="font-size: 13px;">
+                <div>
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <strong>Akses Fitur Terkunci:</strong> {{ isset($currentLicense) ? $currentLicense->getInvalidReason() : 'Aplikasi belum teraktivasi dengan lisensi aktif.' }}
+                </div>
+                <a href="{{ route('license.index') }}" class="btn btn-xs btn-warning font-weight-bold text-dark px-2">
+                    Aktivasi / Perbarui Lisensi &rarr;
+                </a>
+            </div>
+        @endif
+
         <!-- Content Header (Page header) -->
         <div class="content-header pb-2 pt-2 pt-md-3">
             <div class="container-fluid">

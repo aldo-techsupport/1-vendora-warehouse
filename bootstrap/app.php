@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'menu' => CheckMenuAccess::class,
+            'license' => \App\Http\Middleware\EnsureValidLicense::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

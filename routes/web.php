@@ -17,8 +17,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 });
 
-// Authenticated Application Routes
-Route::middleware('auth')->group(function () {
+// Authenticated Application Routes (Protected by Auth & License Gate)
+Route::middleware(['auth', 'license'])->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
